@@ -19,7 +19,7 @@ Sugere-se que os grupos sejam formados por 2 estudantes ou, no máximo, 3 estuda
 Links para ajudar no desenvolvimento do programa.
 
 - [UDP](https://en.wikipedia.org/wiki/User_Datagram_Protocol)
-- [TCP](https://en.wikipedia.org/wiki/Trivial_File_Transfer_Protocol)
+- [TFTP](https://en.wikipedia.org/wiki/Trivial_File_Transfer_Protocol)
 - [The TFTP Protocol](https://tools.ietf.org/html/rfc1350)
 - [TFTP Blocksize Option](https://tools.ietf.org/html/rfc2348)
 - [python-udp-filetransfer](https://github.com/codyharrington/python-udp-filetransfer)
