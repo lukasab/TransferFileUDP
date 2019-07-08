@@ -14,6 +14,29 @@ Cada pacote, portanto, precisará ter um cabeçalho associado. Sugere-se que ess
 
 Sugere-se que os grupos sejam formados por 2 estudantes ou, no máximo, 3 estudantes. Todos os membros do grupo precisam apresentar o trabalho. Sugere-se que os trabalhos sejam apresentados na semana entre 1 a 5 de julho. Horário a combinar com prof. Montez.
 
+## Como usar
+
+### Baixar as depêndencias
+
+Não há nenhuma depêndencia para o projeto mas se preferir pode criar um ambiente virtual com a versão do python que o programa foi desenvolvido com
+
+```
+pipenv install --dev
+```
+
+### Rodar o programa
+
+Inicie primeiro o _servidor_ em um terminal com:
+
+```
+python server.py
+```
+
+Depois com outro terminal inicie o _cliente_
+```
+python client.py
+```
+
 ## Referências
 
 Links para ajudar no desenvolvimento do programa.
@@ -24,3 +47,4 @@ Links para ajudar no desenvolvimento do programa.
 - [TFTP Blocksize Option](https://tools.ietf.org/html/rfc2348)
 - [python-udp-filetransfer](https://github.com/codyharrington/python-udp-filetransfer)
 - [Pure Python TFTP library](https://github.com/msoulier/tftpy)
+- [NetStruct](https://github.com/stendec/netstruct)
