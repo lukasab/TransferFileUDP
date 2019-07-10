@@ -1,13 +1,15 @@
-from socket import socket, AF_INET, SOCK_DGRAM
+from socket import socket, AF_INET, SOCK_DGRAM, timeout
 from struct import pack
+import sys 
 
 MODES = ['netascii', 'octet', 'mail']
 class Client(object):
-    def __init__(self, host="127.0.0.1", port=5000, buffer=1000):
+    def __init__(self, host="127.0.0.1", port=5000, buffer=1024, timeout=10):
         self.dest = (host, port)
         self.udp_client_socket = socket(AF_INET, SOCK_DGRAM)
         self.last_msg = ""
         self.buffer = buffer
+        self.timeout = timeout
 
     def send_msg(self):
         print("To exit type 'stop'")
@@ -34,15 +36,94 @@ class Client(object):
 
         opcode = 1
         fmt = '!H'+str(len(filename))+'sb'+str(len(mode))+'sb'
-        rrq = pack(fmt, opcode, filename.encode("ascii"), 0, mode.encode("ascii"), 0)
+        rrq = pack(fmt, opcode, filename.encode('ascii'), 0, mode.encode('ascii'), 0)
         self.udp_client_socket.sendto(rrq, self.dest)
-        recv_data = self.udp_client_socket.recv(self.buffer)
-        print(recv_data)
+        self.udp_client_socket.settimeout(self.timeout)
+        try:
+            recv_data = self.udp_client_socket.recv(self.buffer)
+            print("Recebi")
+            self.parse_packet(recv_data)
+        except timeout:
+            print("Timeout")
 
+    def parse_packet(self, packet):
+        """
+           opcode  operation
+            1     Read request (RRQ)
+            2     Write request (WRQ)
+            3     Data (DATA)
+            4     Acknowledgment (ACK)
+            5     Error (ERROR)
+        """
+        opcode = packet[0:2]
+        if opcode == b'\x00\x03':
+            self.handle_data(packet)
+        elif opcode == b'\x00\x04':
+            self.handle_ack(packet)
+        elif opcode == b'\x00\x05':
+            self.handle_error(packet)
+        else:
+            sys.exit("Opcode não tratado")
+
+    def handle_data(self, packet):
+        """
+                        DATA packet
+            2 bytes     2 bytes      n bytes
+            ----------------------------------
+           | Opcode |   Block #  |   Data     |
+            ----------------------------------
+        """
+        print("handle data")
+        block_number_start = 1
+        receiving = True
+        with open('recebido/received.txt', 'wb') as file_2_receive:
+            while receiving:
+                block_number = packet[2:4].decode('ascii')
+                data = packet[4:]
+                file_2_receive.write(data)
+                print("Waiting new data")
+                packet = self.udp_client_socket.recv(self.buffer)
+                print("Received data")
+                print(len(data))
+                print(data)
+                if len(data) < 1000:
+                    receiving = False
+            print("Finish")
+
+
+                
+
+    def handle_error(self, packet):
+        """
+                          ERROR packet
+            2 bytes     2 bytes      string    1 byte
+            -----------------------------------------
+           | Opcode |  ErrorCode |   ErrMsg   |   0  |
+            -----------------------------------------
+            
+                          Error Codes
+            Value              Meaning
+
+              0         Not defined, see error message (if any).
+              1         File not found.
+              2         Access violation.
+              3         Disk full or allocation exceeded.
+              4         Illegal TFTP operation.
+              5         Unknown transfer ID.
+              6         File already exists.
+              7         No such user.
+        """
+        error_code = packet[2:4]
+        error_msg_end = packet.find(b'\0', 4)
+        error_msg = packet[4:error_msg_end].decode('ascii')
+        sys.exit("Pacote de erro recebido.")
+        #print(error_code)
+        #print(error_msg)
+        pass
 
 def main():
     client = Client()
-    client.establish_connection("test.txt")
+    client.establish_connection("send.txt")
 
 if __name__ == "__main__":
     main()
