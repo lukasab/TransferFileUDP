@@ -2,17 +2,18 @@
 Server program for the TFTP protocol (https://tools.ietf.org/html/rfc1350).
 It can transfer files with a UDP connection
 """
-from socket import socket, AF_INET, SOCK_DGRAM
+from socket import socket, AF_INET, SOCK_DGRAM, timeout
 from struct import pack
 import sys
 import os
 import time 
+import select
 
 class Server():
     """
     Server class with all methods defined in the protocol
     """
-    def __init__(self, host, port, buffer=1000, timeout=5):
+    def __init__(self, host, port, buffer=1000, timeout=10):
         self.host = host
         self.port = port
         self.buffer = buffer
@@ -73,8 +74,18 @@ class Server():
     def handle_data(self, packet, client):
         pass
 
-    def handle_ack(self, packet, client):
-        pass
+    def handle_ack(self, packet, client, block_number_exp=0):
+        """
+                 ACK packet
+            2 bytes     2 bytes
+            ---------------------
+           | Opcode |   Block #  |
+            ---------------------
+        """
+        block_number_recv = int.from_bytes(packet[2:4], 'big')
+        if block_number_recv == block_number_exp:
+            return True
+        return False
 
     def handle_error(self):
         pass
@@ -93,16 +104,31 @@ class Server():
             end_of_file = False
             while not end_of_file:
                 bytes_2_send = file_2_send.read(self.buffer)
-                print(len(bytes_2_send))
-                if len(bytes_2_send) < self.buffer:
-                    end_of_file = True
+                #print(len(bytes_2_send))
                 fmt = '!HH'+str(len(bytes_2_send))+'s'
                 data = pack(fmt, opcode, block_number, bytes_2_send)
-                print(data)
+                if len(bytes_2_send) < self.buffer:
+                    #print(bytes_2_send)
+                    end_of_file = True
+                print("Mandando")
                 self.udp_server_socket.sendto(data, client)
+                time.sleep(2)
+                print("Mandou")
+                ready, _, _ = select.select([self.udp_server_socket], [], [])
+                if ready:
+                    packet_ack, client = self.udp_server_socket.recvfrom(6)
+                
+                #print("ACK")
+                #print(packet)
+                #while(self.wait_ack(block_number)):
+                #    self.udp_server_socket.sendto(data, client)
+                 #   print("Mandando de novo")
+                #print(data)
                 block_number += 1
-                time.sleep(1)
-        pass
+                time.sleep(2)
+            self.udp_server_socket.sendto(data, client)
+            #print(data)
+            print("Terminou de enviar")
 
     def send_error(self, error_code, client, error_msg=""):
         """
@@ -129,6 +155,17 @@ class Server():
         error = pack(fmt, opcode, error_code, error_msg.encode('ascii'), 0)
         self.udp_server_socket.sendto(error, client)
         self.stop = True
+
+    def wait_ack(self, block_number):
+        self.udp_server_socket.settimeout(self.timeout)
+        try:
+            packet, client = self.udp_server_socket.recvfrom(self.buffer)
+            opcode = packet[0:2]
+            if opcode == b'\x00\x04':
+                return handle_ack(packet, client, block_number)
+        except timeout:
+            print("Timeout")
+        return False
 
     def response(self, client_dest):
         self.udp_server_socket.sendto("ACK".encode(), client_dest)

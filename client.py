@@ -1,6 +1,7 @@
 from socket import socket, AF_INET, SOCK_DGRAM, timeout
 from struct import pack
 import sys 
+import time
 
 MODES = ['netascii', 'octet', 'mail']
 class Client(object):
@@ -41,10 +42,24 @@ class Client(object):
         self.udp_client_socket.settimeout(self.timeout)
         try:
             recv_data = self.udp_client_socket.recv(self.buffer)
-            print("Recebi")
+            #print("Recebi")
             self.parse_packet(recv_data)
         except timeout:
             print("Timeout")
+
+    def send_ack(self, block_number):
+        """
+               ACK packet
+          2 bytes     2 bytes
+         ---------------------
+        | Opcode |   Block #  |
+         ---------------------
+        """
+        opcode = 4
+        fmt = '!HH'
+        ack = pack(fmt, opcode, block_number)
+        self.udp_client_socket.sendto(ack, self.dest)
+        print("ACK enviado, B#={0}".format(block_number))
 
     def parse_packet(self, packet):
         """
@@ -73,25 +88,23 @@ class Client(object):
            | Opcode |   Block #  |   Data     |
             ----------------------------------
         """
-        print("handle data")
         block_number_start = 1
         receiving = True
         with open('recebido/received.txt', 'wb') as file_2_receive:
             while receiving:
-                block_number = packet[2:4].decode('ascii')
+                block_number = int.from_bytes(packet[2:4], 'big')
                 data = packet[4:]
                 file_2_receive.write(data)
-                print("Waiting new data")
-                packet = self.udp_client_socket.recv(self.buffer)
-                print("Received data")
-                print(len(data))
+                print("Dados recebidos")
+                print("Tamanho dos dados: {0} bytes.\nDados:".format(len(data)))
                 print(data)
+                self.send_ack(block_number)
+                print("\nEsperando dados")
+                time.sleep(2)
+                packet = self.udp_client_socket.recv(self.buffer)
                 if len(data) < 1000:
                     receiving = False
             print("Finish")
-
-
-                
 
     def handle_error(self, packet):
         """
