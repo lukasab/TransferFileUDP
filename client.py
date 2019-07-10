@@ -2,10 +2,11 @@ from socket import socket, AF_INET, SOCK_DGRAM, timeout
 from struct import pack
 import sys 
 import time
+import random
 
 MODES = ['netascii', 'octet', 'mail']
 class Client(object):
-    def __init__(self, host="127.0.0.1", port=5000, buffer=1024, timeout=10):
+    def __init__(self, host="127.0.0.1", port=5000, buffer=1024, timeout=20):
         self.dest = (host, port)
         self.udp_client_socket = socket(AF_INET, SOCK_DGRAM)
         self.last_msg = ""
@@ -90,20 +91,30 @@ class Client(object):
         """
         block_number_start = 1
         receiving = True
+        dado_perdido = False
         with open('recebido/received.txt', 'wb') as file_2_receive:
             while receiving:
-                block_number = int.from_bytes(packet[2:4], 'big')
-                data = packet[4:]
-                file_2_receive.write(data)
-                print("Dados recebidos")
-                print("Tamanho dos dados: {0} bytes.\nDados:".format(len(data)))
-                print(data)
-                self.send_ack(block_number)
                 print("\nEsperando dados")
-                time.sleep(2)
+                if random.uniform(0,1) > 0.3:
+                    print("Dado perdido")
+                    self.udp_client_socket.sendto("error".encode(), self.dest)
+                    data = packet[4:]
+                    dado_perdido = True
+                else:
+                    dado_perdido = False
+                    block_number = int.from_bytes(packet[2:4], 'big')
+                    data = packet[4:]
+                    print("Dados recebidos")
+                    print("Tamanho dos dados: {0} bytes.\nDados:".format(len(data)))
+                    print(data)
+                    file_2_receive.write(data)
+                    self.send_ack(block_number)
+                
+                time.sleep(1)
                 packet = self.udp_client_socket.recv(self.buffer)
-                if len(data) < 1000:
-                    receiving = False
+                if not dado_perdido:
+                    if len(data) < 1000:
+                        receiving = False
             print("Finish")
 
     def handle_error(self, packet):

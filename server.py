@@ -13,13 +13,13 @@ class Server():
     """
     Server class with all methods defined in the protocol
     """
-    def __init__(self, host, port, buffer=1000, timeout=10):
+    def __init__(self, host, port, buffer=1000, timeout=5):
         self.host = host
         self.port = port
         self.buffer = buffer
         self.udp_server_socket = socket(AF_INET, SOCK_DGRAM)
         self.last_msg = ""
-        self.timeout=timeout
+        self.timeout= timeout
         self.stop = False
 
     def start(self):
@@ -84,7 +84,9 @@ class Server():
         """
         block_number_recv = int.from_bytes(packet[2:4], 'big')
         if block_number_recv == block_number_exp:
+            print("ACK recebido e validado")
             return True
+        print("ACK recebido, mas invalidado")
         return False
 
     def handle_error(self):
@@ -112,12 +114,17 @@ class Server():
                     end_of_file = True
                 print("Mandando")
                 self.udp_server_socket.sendto(data, client)
-                time.sleep(2)
+                time.sleep(1)
                 print("Mandou")
                 ready, _, _ = select.select([self.udp_server_socket], [], [])
+                print("Ready")
                 if ready:
-                    packet_ack, client = self.udp_server_socket.recvfrom(6)
+                    #packet_ack, client = self.udp_server_socket.recvfrom(self.buffer)
+                    while not self.wait_ack(block_number):
+                        print("Mandando de novo")
+                        self.udp_server_socket.sendto(data, client)
                 
+                #print(self.wait_ack(block_number))
                 #print("ACK")
                 #print(packet)
                 #while(self.wait_ack(block_number)):
@@ -129,6 +136,9 @@ class Server():
             self.udp_server_socket.sendto(data, client)
             #print(data)
             print("Terminou de enviar")
+            ready, _, _ = select.select([self.udp_server_socket], [], [])
+            if ready:
+                self.udp_server_socket.settimeout(0)
 
     def send_error(self, error_code, client, error_msg=""):
         """
@@ -157,12 +167,13 @@ class Server():
         self.stop = True
 
     def wait_ack(self, block_number):
+        print("Esperando ACK")
         self.udp_server_socket.settimeout(self.timeout)
         try:
             packet, client = self.udp_server_socket.recvfrom(self.buffer)
             opcode = packet[0:2]
             if opcode == b'\x00\x04':
-                return handle_ack(packet, client, block_number)
+                return self.handle_ack(packet, client, block_number)
         except timeout:
             print("Timeout")
         return False
